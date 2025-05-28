@@ -70,7 +70,7 @@ export default function LocationInput({
   return (
     <div className="bg-white rounded-lg shadow-md p-6 mb-6">
       <h2 className="text-xl font-semibold text-gray-800 mb-4">
-        Como você quer encontrar o McDonald's?
+        Como você quer encontrar o McDonald&apos;s?
       </h2>
 
       <div className="space-y-4">
