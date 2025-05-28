@@ -13,17 +13,10 @@ const RouteMap = dynamic(() => import("./RouteMap"), { ssr: false });
 export default function ResultCard({ result, onNewSearch }: ResultCardProps) {
   if (!result) return null;
 
-  const {
-    nearest,
-    mcdonaldsList,
-    distance,
-    estimatedTime,
-    path,
-    steps,
-    algorithmInfo,
-  } = result;
+  const { nearest, distance, estimatedTime, path, steps, algorithmInfo } =
+    result;
   const mc = nearest || result.mcdonalds; // fallback para compatibilidade
-  if (!mc) return <div>Nenhum McDonald's encontrado.</div>;
+  if (!mc) return <div>Nenhum McDonald&apos;s encontrado.</div>;
 
   return (
     <div className="bg-white rounded-lg shadow-md p-6 mb-6">
@@ -78,7 +71,8 @@ export default function ResultCard({ result, onNewSearch }: ResultCardProps) {
       <div className="flex items-start justify-between mb-4">
         <div>
           <h2 className="text-xl font-semibold text-gray-800 mb-2">
-            <span className="mr-2">🍟</span>McDonald's mais próximo encontrado!
+            <span className="mr-2">🍟</span>McDonald&apos;s mais pr&oacute;ximo
+            encontrado!
           </h2>
           <div className="flex items-center space-x-4 text-sm text-gray-600">
             <span className="flex items-center space-x-1">

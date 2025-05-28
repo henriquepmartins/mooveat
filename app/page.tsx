@@ -82,7 +82,7 @@ export default function Home() {
               htmlFor="algorithm-select"
               className="block font-medium text-gray-700 mb-2"
             >
-              Desempenho do Algoritmo
+              Selecione o Algoritmo
             </label>
             <select
               id="algorithm-select"
