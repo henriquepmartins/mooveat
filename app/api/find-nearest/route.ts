@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import Graph from "../../../lib/graph";
 
 const GOOGLE_MAPS_API_KEY = process.env.MAPS_API_KEY;
 
@@ -9,8 +10,9 @@ if (!GOOGLE_MAPS_API_KEY) {
 
 export async function POST(request: NextRequest) {
   try {
+    const startTime = Date.now();
     const body = await request.json();
-    const { userLat, userLng } = body;
+    const { userLat, userLng, algorithm } = body;
     console.log("Body recebido:", body);
 
     if (!userLat || !userLng) {
@@ -103,101 +105,266 @@ export async function POST(request: NextRequest) {
     // Pega o mais próximo (primeiro da lista)
     const mc = mcdonaldsList[0];
 
-    // 2. Buscar rota real usando Google Routes API v2 para o mais próximo
-    const routesUrl = `https://routes.googleapis.com/directions/v2:computeRoutes?key=${GOOGLE_MAPS_API_KEY}`;
-    const routesBody = {
-      origin: {
-        location: {
-          latLng: {
-            latitude: userLat,
-            longitude: userLng,
-          },
-        },
-      },
-      destination: {
-        location: {
-          latLng: {
-            latitude: mc.lat,
-            longitude: mc.lng,
-          },
-        },
-      },
-      travelMode: "DRIVE",
-      languageCode: "pt-BR",
-    };
-    console.log("Buscando rota com Routes API v2:", routesUrl, routesBody);
-    const routesRes = await fetch(routesUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Goog-FieldMask":
-          "routes.distanceMeters,routes.duration,routes.polyline.encodedPolyline,routes.legs",
-      },
-      body: JSON.stringify(routesBody),
-    });
-    const routesData = await routesRes.json();
-    console.log("Resposta do Google Routes API v2:", routesData);
-
-    if (!routesData.routes || routesData.routes.length === 0) {
-      console.warn("Routes API não retornou rotas:", routesData);
-      return NextResponse.json(
-        { error: "Não foi possível calcular a rota até o McDonald's." },
-        { status: 500 }
-      );
-    }
-
-    const route = routesData.routes[0];
-    const leg = route.legs[0];
-    // Polyline pode estar em route.polyline.encodedPolyline
-    const polyline = route.polyline.encodedPolyline;
-    // Decodifica polyline para array de coordenadas
-    function decodePolyline(encoded: string) {
-      const points = [];
-      let index = 0;
-      const len = encoded.length;
-      let lat = 0;
-      let lng = 0;
-      while (index < len) {
-        let b,
-          shift = 0;
-        let result = 0;
-        do {
-          b = encoded.charCodeAt(index++) - 63;
-          result |= (b & 0x1f) << shift;
-          shift += 5;
-        } while (b >= 0x20);
-        const dlat = result & 1 ? ~(result >> 1) : result >> 1;
-        lat += dlat;
-        shift = 0;
-        result = 0;
-        do {
-          b = encoded.charCodeAt(index++) - 63;
-          result |= (b & 0x1f) << shift;
-          shift += 5;
-        } while (b >= 0x20);
-        const dlng = result & 1 ? ~(result >> 1) : result >> 1;
-        lng += dlng;
-        points.push({
-          lat: lat / 1e5,
-          lng: lng / 1e5,
+    // Algoritmo de rota: Google ou Dijkstra
+    if (algorithm === "dijkstra") {
+      // --- Dijkstra ---
+      const graph = new Graph();
+      mcdonaldsList
+        .filter(
+          (mc) => typeof mc.lat === "number" && typeof mc.lng === "number"
+        )
+        .forEach((mc) => {
+          graph.addLocation(mc.id, mc.name, mc.lat!, mc.lng!, "mcdonalds");
         });
+      graph.addLocation("user", "Sua Localização", userLat, userLng, "user");
+      mcdonaldsList
+        .filter(
+          (mc) => typeof mc.lat === "number" && typeof mc.lng === "number"
+        )
+        .forEach((mc) => {
+          graph.addEdge("user", mc.id);
+        });
+      const dijkstraResult = graph.dijkstra("user", "mcdonalds");
+      if (!dijkstraResult) {
+        return NextResponse.json(
+          {
+            error:
+              "Não foi possível calcular a rota até o McDonald's (Dijkstra).",
+          },
+          { status: 500 }
+        );
       }
-      return points;
+      const path = dijkstraResult.path.map(
+        (loc: import("../../../types").Location) => ({
+          lat: loc.lat,
+          lng: loc.lng,
+        })
+      );
+      const distanceKm = dijkstraResult.distance;
+      const estimatedTime = Math.round((distanceKm / 40) * 60); // Supondo 40km/h
+      const steps = dijkstraResult.path.map(
+        (loc: import("../../../types").Location, idx: number) => ({
+          instruction: idx === 0 ? "Início" : `Vá para ${loc.name}`,
+          distance:
+            idx === 0
+              ? 0
+              : graph["calculateDistance"](
+                  {
+                    ...dijkstraResult.path[idx - 1],
+                    lat: dijkstraResult.path[idx - 1].lat ?? 0,
+                    lng: dijkstraResult.path[idx - 1].lng ?? 0,
+                  },
+                  { ...loc, lat: loc.lat ?? 0, lng: loc.lng ?? 0 }
+                ),
+          index: idx + 1,
+        })
+      );
+      const polyline = undefined;
+      const endTime = Date.now();
+      const algorithmInfo = {
+        algorithm: "Google Places Text Search + Dijkstra",
+        nodesExplored: dijkstraResult.path.length,
+        pathLength: dijkstraResult.path.length,
+        executionTime: (endTime - startTime) / 1000,
+      };
+      const response = {
+        success: true,
+        mcdonaldsList, // todos os McDonald's encontrados
+        nearest: mc, // o mais próximo
+        distance: distanceKm, // km
+        path, // array de {lat, lng}
+        estimatedTime, // minutos
+        polyline, // para uso futuro se quiser
+        address: mc.address,
+        steps, // percurso detalhado
+        algorithmInfo, // info técnica
+      };
+      return NextResponse.json(response);
+    } else {
+      // --- Google Routes API (default) ---
+      const routesUrl = `https://routes.googleapis.com/directions/v2:computeRoutes?key=${GOOGLE_MAPS_API_KEY}`;
+      const routesBody = {
+        origin: {
+          location: {
+            latLng: {
+              latitude: userLat,
+              longitude: userLng,
+            },
+          },
+        },
+        destination: {
+          location: {
+            latLng: {
+              latitude: mc.lat ?? 0,
+              longitude: mc.lng ?? 0,
+            },
+          },
+        },
+        travelMode: "DRIVE",
+        languageCode: "pt-BR",
+      };
+      try {
+        const routesRes = await fetch(routesUrl, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Goog-FieldMask":
+              "routes.distanceMeters,routes.duration,routes.polyline.encodedPolyline,routes.legs",
+          },
+          body: JSON.stringify(routesBody),
+        });
+        const routesData = await routesRes.json();
+        if (!routesData.routes || routesData.routes.length === 0) {
+          throw new Error("Routes API não retornou rotas");
+        }
+        const route = routesData.routes[0];
+        const leg = route.legs[0];
+        const steps = (leg.steps || []).map(
+          (
+            step: {
+              navigationInstruction?: { instructions?: string };
+              distanceMeters: number;
+            },
+            idx: number
+          ) => ({
+            instruction: step.navigationInstruction?.instructions || "",
+            distance: step.distanceMeters,
+            index: idx + 1,
+          })
+        );
+        const polyline = route.polyline.encodedPolyline;
+        function decodePolyline(encoded: string) {
+          const points = [];
+          let index = 0;
+          const len = encoded.length;
+          let lat = 0;
+          let lng = 0;
+          while (index < len) {
+            let b,
+              shift = 0;
+            let result = 0;
+            do {
+              b = encoded.charCodeAt(index++) - 63;
+              result |= (b & 0x1f) << shift;
+              shift += 5;
+            } while (b >= 0x20);
+            const dlat = result & 1 ? ~(result >> 1) : result >> 1;
+            lat += dlat;
+            shift = 0;
+            result = 0;
+            do {
+              b = encoded.charCodeAt(index++) - 63;
+              result |= (b & 0x1f) << shift;
+              shift += 5;
+            } while (b >= 0x20);
+            const dlng = result & 1 ? ~(result >> 1) : result >> 1;
+            lng += dlng;
+            points.push({
+              lat: lat / 1e5,
+              lng: lng / 1e5,
+            });
+          }
+          return points;
+        }
+        const path = decodePolyline(polyline);
+        const distanceKm = leg.distanceMeters / 1000;
+        const estimatedTime = Math.round(leg.duration.seconds / 60);
+        const endTime = Date.now();
+        const algorithmInfo = {
+          algorithm: "Google Places Text Search + Google Routes API",
+          nodesExplored: mcdonaldsList.length,
+          pathLength: steps.length,
+          executionTime: (endTime - startTime) / 1000,
+        };
+        const response = {
+          success: true,
+          mcdonaldsList, // todos os McDonald's encontrados
+          nearest: mc, // o mais próximo
+          distance: distanceKm, // km
+          path, // array de {lat, lng}
+          estimatedTime, // minutos
+          polyline, // para uso futuro se quiser
+          address: mc.address,
+          steps, // percurso detalhado
+          algorithmInfo, // info técnica
+        };
+        return NextResponse.json(response);
+      } catch {
+        // Fallback para Dijkstra
+        const graph = new Graph();
+        mcdonaldsList
+          .filter(
+            (mc) => typeof mc.lat === "number" && typeof mc.lng === "number"
+          )
+          .forEach((mc) => {
+            graph.addLocation(mc.id, mc.name, mc.lat!, mc.lng!, "mcdonalds");
+          });
+        graph.addLocation("user", "Sua Localização", userLat, userLng, "user");
+        mcdonaldsList
+          .filter(
+            (mc) => typeof mc.lat === "number" && typeof mc.lng === "number"
+          )
+          .forEach((mc) => {
+            graph.addEdge("user", mc.id);
+          });
+        const dijkstraResult = graph.dijkstra("user", "mcdonalds");
+        if (!dijkstraResult) {
+          return NextResponse.json(
+            {
+              error:
+                "Não foi possível calcular a rota até o McDonald's (Dijkstra).",
+            },
+            { status: 500 }
+          );
+        }
+        const path = dijkstraResult.path.map(
+          (loc: import("../../../types").Location) => ({
+            lat: loc.lat,
+            lng: loc.lng,
+          })
+        );
+        const distanceKm = dijkstraResult.distance;
+        const estimatedTime = Math.round((distanceKm / 40) * 60); // Supondo 40km/h
+        const steps = dijkstraResult.path.map(
+          (loc: import("../../../types").Location, idx: number) => ({
+            instruction: idx === 0 ? "Início" : `Vá para ${loc.name}`,
+            distance:
+              idx === 0
+                ? 0
+                : graph["calculateDistance"](
+                    {
+                      ...dijkstraResult.path[idx - 1],
+                      lat: dijkstraResult.path[idx - 1].lat ?? 0,
+                      lng: dijkstraResult.path[idx - 1].lng ?? 0,
+                    },
+                    { ...loc, lat: loc.lat ?? 0, lng: loc.lng ?? 0 }
+                  ),
+            index: idx + 1,
+          })
+        );
+        const polyline = undefined;
+        const endTime = Date.now();
+        const algorithmInfo = {
+          algorithm: "Google Places Text Search + Dijkstra",
+          nodesExplored: dijkstraResult.path.length,
+          pathLength: dijkstraResult.path.length,
+          executionTime: (endTime - startTime) / 1000,
+        };
+        const response = {
+          success: true,
+          mcdonaldsList, // todos os McDonald's encontrados
+          nearest: mc, // o mais próximo
+          distance: distanceKm, // km
+          path, // array de {lat, lng}
+          estimatedTime, // minutos
+          polyline, // para uso futuro se quiser
+          address: mc.address,
+          steps, // percurso detalhado
+          algorithmInfo, // info técnica
+        };
+        return NextResponse.json(response);
+      }
     }
-    const path = decodePolyline(polyline);
-
-    const response = {
-      success: true,
-      mcdonaldsList, // todos os McDonald's encontrados
-      nearest: mc, // o mais próximo
-      distance: leg.distanceMeters / 1000, // km
-      path, // array de {lat, lng}
-      estimatedTime: Math.round(leg.duration.seconds / 60), // minutos
-      polyline, // para uso futuro se quiser
-      address: mc.address,
-    };
-
-    return NextResponse.json(response);
   } catch (error) {
     console.error("Erro na API:", error);
     return NextResponse.json(

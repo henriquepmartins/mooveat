@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import LocationInput from "../components/LocationInput";
 import ResultCard from "../components/ResultCard";
 import LoadingSpinner from "../components/LoadingSpinner";
@@ -10,20 +10,30 @@ export default function Home() {
   const [loading, setLoading] = useState<boolean>(false);
   const [result, setResult] = useState<FindNearestResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [isClient, setIsClient] = useState(false);
+  const [algorithm, setAlgorithm] = useState<string>("dijkstra");
+  const [lastLocation, setLastLocation] = useState<{
+    lat: number;
+    lng: number;
+  } | null>(null);
+  const isFirstSearch = useRef(true);
 
   useEffect(() => {
-    setIsClient(true);
-  }, []);
+    if (!isFirstSearch.current && lastLocation) {
+      handleLocationSubmit(lastLocation.lat, lastLocation.lng, true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [algorithm]);
 
   const handleLocationSubmit = async (
     lat: number,
-    lng: number
+    lng: number,
+    keepResult?: boolean
   ): Promise<void> => {
     setLoading(true);
     setError(null);
-    setResult(null);
-
+    if (!keepResult) setResult(null);
+    setLastLocation({ lat, lng });
+    isFirstSearch.current = false;
     try {
       const response = await fetch("/api/find-nearest", {
         method: "POST",
@@ -33,15 +43,13 @@ export default function Home() {
         body: JSON.stringify({
           userLat: lat,
           userLng: lng,
+          algorithm,
         }),
       });
-
       const data = await response.json();
-
       if (!response.ok) {
         throw new Error(data.error || "Erro ao buscar McDonald's");
       }
-
       setResult(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erro desconhecido");
@@ -53,6 +61,8 @@ export default function Home() {
   const handleNewSearch = (): void => {
     setResult(null);
     setError(null);
+    setLastLocation(null);
+    isFirstSearch.current = true;
   };
 
   return (
@@ -65,6 +75,27 @@ export default function Home() {
             Encontre o McDonald&apos;s mais próximo usando algoritmos de grafos
           </p>
         </header>
+
+        {!result && !loading && (
+          <div className="mb-6">
+            <label
+              htmlFor="algorithm-select"
+              className="block font-medium text-gray-700 mb-2"
+            >
+              Desempenho do Algoritmo
+            </label>
+            <select
+              id="algorithm-select"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+              value={algorithm}
+              onChange={(e) => setAlgorithm(e.target.value)}
+              disabled={loading}
+            >
+              <option value="dijkstra">Dijkstra </option>
+              <option value="google">Google Places Search </option>
+            </select>
+          </div>
+        )}
 
         {!result && !loading && (
           <LocationInput
@@ -93,6 +124,27 @@ export default function Home() {
               </svg>
               <span className="text-red-800">{error}</span>
             </div>
+          </div>
+        )}
+
+        {result && (
+          <div className="mb-6">
+            <label
+              htmlFor="algorithm-select-after"
+              className="block font-medium text-gray-700 mb-2"
+            >
+              Desempenho do Algoritmo
+            </label>
+            <select
+              id="algorithm-select-after"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+              value={algorithm}
+              onChange={(e) => setAlgorithm(e.target.value)}
+              disabled={loading}
+            >
+              <option value="dijkstra">Dijkstra (mais didático)</option>
+              <option value="google">Google (mais realista)</option>
+            </select>
           </div>
         )}
 

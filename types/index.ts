@@ -24,6 +24,19 @@ export interface PathResult {
   path: Location[];
 }
 
+export interface StepResult {
+  instruction: string;
+  distance: number;
+  index: number;
+}
+
+export interface AlgorithmInfo {
+  algorithm: string;
+  nodesExplored: number;
+  pathLength: number;
+  executionTime: number;
+}
+
 export interface FindNearestResponse {
   success: boolean;
   nearest: McDonaldsLocation;
@@ -34,6 +47,8 @@ export interface FindNearestResponse {
   polyline?: string;
   address?: string;
   mcdonalds?: McDonaldsLocation;
+  steps?: StepResult[];
+  algorithmInfo?: AlgorithmInfo;
 }
 
 export interface FindNearestRequest {
