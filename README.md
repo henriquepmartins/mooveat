@@ -1,36 +1,29 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Mooveat
 
-## Getting Started
+Mooveat é um aplicativo web desenvolvido em Next.js que conecta usuários a estabelecimentos alimentícios, facilitando o pedido de refeições e promovendo uma melhor experiência de consumo. O foco é oferecer uma interface amigável e eficiente para quem busca praticidade na hora de comer bem.
 
-First, run the development server:
+## 🚀 Funcionalidades
+
+- Autenticação de usuários
+- Listagem de estabelecimentos
+- Visualização de cardápios
+- Sistema de pedidos
+- Histórico de compras
+- Interface responsiva e intuitiva
+
+## 🛠️ Tecnologias Utilizadas
+
+- **Flutter** – SDK principal para desenvolvimento mobile
+- **Dart** – Linguagem de programação
+- **Firebase** – Autenticação e backend
+- **GetX** – Gerenciamento de estado e rotas
+- **Google Fonts** – Tipografia personalizada
+
+## 📦 Instalação
+
+Certifique-se de que você tem o Flutter instalado. Em seguida, clone o repositório:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
-
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
-
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+git clone https://github.com/henriquepmartins/mooveat.git
+cd mooveat
+flutter pub get
