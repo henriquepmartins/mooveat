@@ -16,7 +16,6 @@ const GOOGLE_MAPS_API_KEY = process.env.MAPS_API_KEY;
  */
 
 if (!GOOGLE_MAPS_API_KEY) {
-  // Garante que a chave da API está definida
   console.error("MAPS_API_KEY não definido no ambiente", process.env);
   throw new Error("MAPS_API_KEY não definido no ambiente");
 }

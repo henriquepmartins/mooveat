@@ -165,8 +165,8 @@ export default function Home() {
               onChange={(e) => setAlgorithm(e.target.value)}
               disabled={loading}
             >
-              <option value="dijkstra">Dijkstra (mais didático)</option>
-              <option value="google">Google (mais realista)</option>
+              <option value="dijkstra">Dijkstra </option>
+              <option value="google">Google Routes API </option>
             </select>
           </div>
         )}
