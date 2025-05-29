@@ -6,11 +6,22 @@ import ResultCard from "../components/ResultCard";
 import LoadingSpinner from "../components/LoadingSpinner";
 import { FindNearestResponse } from "../types/index";
 
+/**
+ * Componente principal da página inicial do Mooveat.
+ * Permite ao usuário buscar o McDonald's mais próximo usando diferentes algoritmos de rota.
+ *
+ * Principais funcionalidades:
+ * - Permite ao usuário escolher entre o algoritmo Dijkstra (didático) e Google (realista).
+ * - Recebe a localização do usuário e envia para a API /api/find-nearest.
+ * - Exibe o resultado da busca, incluindo detalhes do percurso e desempenho do algoritmo.
+ *
+ * O algoritmo de Dijkstra é selecionado pelo usuário no dropdown e, ao ser escolhido, a busca é feita na API que executa o cálculo do caminho mais curto entre a localização do usuário e os McDonald's encontrados.
+ */
 export default function Home() {
   const [loading, setLoading] = useState<boolean>(false);
   const [result, setResult] = useState<FindNearestResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [algorithm, setAlgorithm] = useState<string>("dijkstra");
+  const [algorithm, setAlgorithm] = useState<string>("dijkstra"); // Algoritmo selecionado pelo usuário
   const [lastLocation, setLastLocation] = useState<{
     lat: number;
     lng: number;
@@ -18,12 +29,21 @@ export default function Home() {
   const isFirstSearch = useRef(true);
 
   useEffect(() => {
+    // Sempre que o algoritmo for alterado após a primeira busca, refaz a busca com o novo algoritmo
     if (!isFirstSearch.current && lastLocation) {
       handleLocationSubmit(lastLocation.lat, lastLocation.lng, true);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [algorithm]);
 
+  /**
+   * Envia a localização do usuário para a API /api/find-nearest.
+   * O algoritmo selecionado (Dijkstra ou Google) é enviado no corpo da requisição.
+   * O resultado é exibido na tela, incluindo detalhes do percurso e desempenho do algoritmo.
+   * @param lat Latitude do usuário
+   * @param lng Longitude do usuário
+   * @param keepResult Se true, mantém o resultado anterior durante a troca de algoritmo
+   */
   const handleLocationSubmit = async (
     lat: number,
     lng: number,
@@ -67,15 +87,17 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-red-50 to-yellow-50">
+      {/* Interface principal do app. Permite selecionar algoritmo e inserir localização. */}
       <div className="container mx-auto px-4 py-8 max-w-2xl">
         <header className="text-center mb-8">
+          {/* Título e descrição */}
           <div className="text-6xl mb-4">🍔</div>
           <h1 className="text-3xl font-bold text-gray-800 mb-2">Mooveat</h1>
           <p className="text-gray-600">
             Encontre o McDonald&apos;s mais próximo usando algoritmos de grafos
           </p>
         </header>
-
+        {/* Seleção do algoritmo antes da busca */}
         {!result && !loading && (
           <div className="mb-6">
             <label
@@ -96,19 +118,20 @@ export default function Home() {
             </select>
           </div>
         )}
-
+        {/* Input de localização */}
         {!result && !loading && (
           <LocationInput
             onLocationSubmit={handleLocationSubmit}
             loading={loading}
           />
         )}
-
+        {/* Exibe spinner de carregamento */}
         {loading && <LoadingSpinner />}
-
+        {/* Exibe erro, se houver */}
         {error && (
           <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
             <div className="flex items-center">
+              {/* Ícone de erro */}
               <svg
                 className="w-5 h-5 text-red-600 mr-2"
                 fill="none"
@@ -126,7 +149,7 @@ export default function Home() {
             </div>
           </div>
         )}
-
+        {/* Seleção do algoritmo após resultado, para comparar desempenho */}
         {result && (
           <div className="mb-6">
             <label
@@ -147,9 +170,8 @@ export default function Home() {
             </select>
           </div>
         )}
-
+        {/* Exibe o resultado da busca, incluindo percurso e informações do algoritmo */}
         <ResultCard result={result} onNewSearch={handleNewSearch} />
-
         <footer className="text-center text-gray-500 text-sm mt-8">
           <p>
             Algoritmo baseado em Dijkstra para encontrar o caminho mais curto.

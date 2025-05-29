@@ -3,7 +3,20 @@ import Graph from "../../../lib/graph";
 
 const GOOGLE_MAPS_API_KEY = process.env.MAPS_API_KEY;
 
+/**
+ * API Route: /api/find-nearest
+ *
+ * Recebe a localização do usuário e retorna o McDonald's mais próximo, usando dois algoritmos possíveis:
+ * - Google Places + Google Routes API (realista)
+ * - Google Places + Dijkstra (didático)
+ *
+ * O algoritmo de Dijkstra é implementado manualmente usando a classe Graph (em lib/graph).
+ * O grafo é montado com o usuário como nó inicial e os McDonald's como nós de destino.
+ * As arestas são criadas entre o usuário e cada McDonald's, e o Dijkstra encontra o caminho mais curto.
+ */
+
 if (!GOOGLE_MAPS_API_KEY) {
+  // Garante que a chave da API está definida
   console.error("MAPS_API_KEY não definido no ambiente", process.env);
   throw new Error("MAPS_API_KEY não definido no ambiente");
 }
@@ -32,6 +45,8 @@ export async function POST(request: NextRequest) {
 
     // 1. Buscar McDonald's mais próximo usando Google Places Text Search (NEW API)
     async function buscarMcDonaldsTextSearch(radius: number) {
+      // Busca McDonald's próximos usando a API do Google Places
+      // Retorna até 10 resultados em um raio definido
       const url = "https://places.googleapis.com/v1/places:searchText";
       const body = {
         textQuery: "McDonald's",
@@ -93,6 +108,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Monta lista de McDonald's encontrados
     const mcdonaldsList = (results as PlaceResult[]).map((mc) => ({
       id: mc.id,
       name: mc.displayName?.text || "McDonald's",
@@ -108,7 +124,15 @@ export async function POST(request: NextRequest) {
     // Algoritmo de rota: Google ou Dijkstra
     if (algorithm === "dijkstra") {
       // --- Dijkstra ---
+      /**
+       * Implementação do algoritmo de Dijkstra:
+       * 1. Cria um grafo com o usuário e todos os McDonald's como nós.
+       * 2. Adiciona arestas do usuário para cada McDonald's.
+       * 3. Executa o método dijkstra da classe Graph, que retorna o caminho mais curto.
+       * 4. Monta a resposta com o percurso, distância, tempo estimado e informações do algoritmo.
+       */
       const graph = new Graph();
+      // Adiciona todos os McDonald's como nós do grafo
       mcdonaldsList
         .filter(
           (mc) => typeof mc.lat === "number" && typeof mc.lng === "number"
@@ -116,7 +140,9 @@ export async function POST(request: NextRequest) {
         .forEach((mc) => {
           graph.addLocation(mc.id, mc.name, mc.lat!, mc.lng!, "mcdonalds");
         });
+      // Adiciona o usuário como nó inicial
       graph.addLocation("user", "Sua Localização", userLat, userLng, "user");
+      // Cria arestas do usuário para cada McDonald's
       mcdonaldsList
         .filter(
           (mc) => typeof mc.lat === "number" && typeof mc.lng === "number"
@@ -124,6 +150,7 @@ export async function POST(request: NextRequest) {
         .forEach((mc) => {
           graph.addEdge("user", mc.id);
         });
+      // Executa o algoritmo de Dijkstra para encontrar o caminho mais curto até um McDonald's
       const dijkstraResult = graph.dijkstra("user", "mcdonalds");
       if (!dijkstraResult) {
         return NextResponse.json(
@@ -134,6 +161,7 @@ export async function POST(request: NextRequest) {
           { status: 500 }
         );
       }
+      // Monta o percurso e resposta
       const path = dijkstraResult.path.map(
         (loc: import("../../../types").Location) => ({
           lat: loc.lat,
@@ -182,6 +210,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(response);
     } else {
       // --- Google Routes API (default) ---
+      // Usa a API do Google para calcular a rota realista de carro
+      // Se falhar, faz fallback para Dijkstra
       const routesUrl = `https://routes.googleapis.com/directions/v2:computeRoutes?key=${GOOGLE_MAPS_API_KEY}`;
       const routesBody = {
         origin: {
@@ -290,7 +320,7 @@ export async function POST(request: NextRequest) {
         };
         return NextResponse.json(response);
       } catch {
-        // Fallback para Dijkstra
+        // Fallback para Dijkstra (mesma lógica do bloco acima)
         const graph = new Graph();
         mcdonaldsList
           .filter(

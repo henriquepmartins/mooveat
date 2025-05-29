@@ -121,7 +121,7 @@ export default function LocationInput({
             disabled={loading || !address.trim()}
             className="w-full bg-yellow-500 hover:bg-yellow-600 disabled:bg-gray-400 text-white font-medium py-3 px-4 rounded-lg transition-colors duration-200"
           >
-            {loading ? "Buscando..." : "Buscar McDonald&apos;s"}
+            {loading ? "Buscando..." : "Buscar McDonald's"}
           </button>
         </form>
       </div>
